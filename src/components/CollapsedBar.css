@@ -1,0 +1,101 @@
+.collapsed-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 10px;
+  cursor: pointer;
+  user-select: none;
+  min-height: 48px;
+}
+
+.collapsed-bar__providers {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.collapsed-bar__divider {
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+}
+
+.collapsed-bar__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 8px;
+  flex-shrink: 0;
+}
+
+.collapsed-bar__chevron {
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+.collapsed-bar__theme-toggle {
+  background: none;
+  border: none;
+  font-size: 12px;
+  color: var(--text-secondary);
+  opacity: 0.4;
+  cursor: pointer;
+  padding: 2px 4px;
+  line-height: 1;
+  border-radius: var(--radius-sm);
+  transition: opacity 0.15s, color 0.15s;
+}
+
+.collapsed-bar__theme-toggle:hover {
+  opacity: 1;
+  color: var(--color-yellow);
+}
+
+.collapsed-bar__exit {
+  background: none;
+  border: none;
+  font-size: 12px;
+  color: var(--text-secondary);
+  opacity: 0.4;
+  cursor: pointer;
+  padding: 2px 4px;
+  line-height: 1;
+  border-radius: var(--radius-sm);
+  transition: opacity 0.15s, color 0.15s;
+}
+
+.collapsed-bar__exit:hover {
+  opacity: 1;
+  color: var(--color-red);
+}
+
+.mini-usage {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.mini-usage__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.mini-usage__label {
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.mini-usage__percent {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  min-width: 28px;
+  text-align: right;
+}
+
+.mini-usage__bar {
+  width: 40px;
+}
