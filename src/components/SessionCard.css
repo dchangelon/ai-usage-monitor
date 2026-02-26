@@ -6,19 +6,33 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+  border-left: 3px solid var(--border);
+  transition: border-left-color 0.3s ease;
+}
+
+/* Left border stripe by status */
+.session-card.session-card--active {
+  border-left-color: var(--accent-cursor);
+}
+
+.session-card.session-card--review {
+  border-left-color: var(--color-yellow);
+}
+
+.session-card.session-card--idle {
+  border-left-color: var(--border);
 }
 
 .session-card__header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  gap: 8px;
+  align-items: center;
+  gap: 6px;
 }
 
 .session-card__titles {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: center;
   min-width: 0;
   flex: 1;
 }
@@ -32,6 +46,62 @@
   text-overflow: ellipsis;
 }
 
+/* Status badge (dot + label) */
+.session-card__status-badge {
+  font-size: var(--text-xs);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.session-card__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Active (Working) */
+.session-card__status-badge.session-card--active {
+  color: var(--accent-cursor);
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.session-card--active .session-card__dot {
+  background-color: var(--accent-cursor);
+  animation: status-pulse 1.5s ease-in-out infinite;
+}
+
+/* Review */
+.session-card__status-badge.session-card--review {
+  color: var(--color-yellow);
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.session-card--review .session-card__dot {
+  background-color: var(--color-yellow);
+}
+
+/* Idle */
+.session-card__status-badge.session-card--idle {
+  color: var(--text-secondary);
+  background: var(--bar-track);
+}
+
+.session-card--idle .session-card__dot {
+  background-color: var(--text-secondary);
+  opacity: 0.5;
+}
+
+@keyframes status-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
 .session-card__model {
   font-size: var(--text-xs);
   color: var(--text-secondary);
@@ -39,4 +109,6 @@
   padding: 2px 6px;
   border-radius: var(--radius-sm);
   font-family: monospace;
+  white-space: nowrap;
+  flex-shrink: 0;
 }

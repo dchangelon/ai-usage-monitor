@@ -1,4 +1,6 @@
+import { useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import ProgressBar from "./ProgressBar";
 import "./CollapsedBar.css";
 
@@ -27,6 +29,27 @@ export default function CollapsedBar({
 }) {
   const claudePercent = claudeUsage?.primary?.utilization ?? null;
   const cursorPercent = cursorUsage?.primary?.utilization ?? null;
+  const mouseDownPos = useRef(null);
+
+  const handleMouseDown = (e) => {
+    if (e.button === 0) {
+      mouseDownPos.current = { x: e.clientX, y: e.clientY };
+    }
+  };
+
+  const handleMouseMove = (e) => {
+    if (!mouseDownPos.current || e.buttons !== 1) return;
+    const dx = e.clientX - mouseDownPos.current.x;
+    const dy = e.clientY - mouseDownPos.current.y;
+    if (dx * dx + dy * dy > 9) { // 3px threshold
+      mouseDownPos.current = null;
+      getCurrentWindow().startDragging();
+    }
+  };
+
+  const handleClick = () => {
+    onToggle();
+  };
 
   const handleExit = (e) => {
     e.stopPropagation();
@@ -34,7 +57,7 @@ export default function CollapsedBar({
   };
 
   return (
-    <div className="collapsed-bar" onClick={onToggle} data-tauri-drag-region>
+    <div className="collapsed-bar" onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onClick={handleClick}>
       <div className="collapsed-bar__providers">
         <MiniUsage
           label="Claude"

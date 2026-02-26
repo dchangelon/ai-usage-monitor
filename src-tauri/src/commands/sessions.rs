@@ -4,6 +4,8 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const DEFAULT_CONTEXT_LIMIT: u64 = 200_000;
+const IDLE_THRESHOLD_SECS: u64 = 120; // 2 minutes
+const ACTIVE_THRESHOLD_SECS: u64 = 30; // file modified within last 30s
 
 fn model_context_limit(_model: &str) -> u64 {
     // All current Claude models use 200k context
@@ -63,7 +65,8 @@ fn extract_conversation_title(entry: &Value) -> Option<String> {
     None
 }
 
-fn parse_session_file(jsonl_path: &Path) -> SessionTokens {
+/// Returns (SessionTokens, last_entry_type, max_subagent_mtime)
+fn parse_session_file(jsonl_path: &Path) -> (SessionTokens, String, u64) {
     let session_id = jsonl_path
         .file_stem()
         .unwrap_or_default()
@@ -92,14 +95,17 @@ fn parse_session_file(jsonl_path: &Path) -> SessionTokens {
         context_limit: DEFAULT_CONTEXT_LIMIT,
         last_model: String::new(),
         message_count: 0,
+        status: String::new(),
+        last_activity_epoch: 0,
     };
 
     let content = match std::fs::read_to_string(jsonl_path) {
         Ok(c) => c,
-        Err(_) => return tokens,
+        Err(_) => return (tokens, String::new(), 0),
     };
 
     let mut found_title = false;
+    let mut last_entry_type = String::new();
 
     for line in content.lines() {
         if line.trim().is_empty() {
@@ -109,6 +115,13 @@ fn parse_session_file(jsonl_path: &Path) -> SessionTokens {
             Ok(v) => v,
             Err(_) => continue,
         };
+
+        // Track the type of every valid entry for status detection
+        // Must track all types (user, assistant, result, etc.) so that
+        // tool result entries correctly indicate Claude is still working
+        if let Some(t) = entry.get("type").and_then(|t| t.as_str()) {
+            last_entry_type = t.to_string();
+        }
 
         // Extract conversation title from first user message
         if !found_title && entry.get("type").and_then(|t| t.as_str()) == Some("user") {
@@ -142,12 +155,14 @@ fn parse_session_file(jsonl_path: &Path) -> SessionTokens {
 
     tokens.context_limit = model_context_limit(&tokens.last_model);
 
-    // Sum subagent files
+    // Sum subagent files and track most recent subagent mtime
     let subagents_dir = jsonl_path
         .parent()
         .unwrap_or(jsonl_path)
         .join(&session_id)
         .join("subagents");
+
+    let mut max_subagent_mtime: u64 = 0;
 
     if subagents_dir.exists() {
         if let Ok(entries) = std::fs::read_dir(&subagents_dir) {
@@ -160,7 +175,18 @@ fn parse_session_file(jsonl_path: &Path) -> SessionTokens {
                     .starts_with("agent-")
                     && path.extension().map_or(false, |ext| ext == "jsonl")
                 {
-                    let sub = parse_session_file(&path);
+                    // Track subagent mtime for status detection
+                    let sub_mtime = path
+                        .metadata()
+                        .ok()
+                        .and_then(|m| m.modified().ok())
+                        .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
+                        .map_or(0, |d| d.as_secs());
+                    if sub_mtime > max_subagent_mtime {
+                        max_subagent_mtime = sub_mtime;
+                    }
+
+                    let (sub, _, _) = parse_session_file(&path);
                     tokens.input_tokens += sub.input_tokens;
                     tokens.output_tokens += sub.output_tokens;
                     tokens.cache_read_tokens += sub.cache_read_tokens;
@@ -171,7 +197,7 @@ fn parse_session_file(jsonl_path: &Path) -> SessionTokens {
         }
     }
 
-    tokens
+    (tokens, last_entry_type, max_subagent_mtime)
 }
 
 #[tauri::command]
@@ -227,7 +253,12 @@ pub async fn get_sessions(recency_minutes: Option<u64>) -> Result<Vec<SessionTok
         })
         .collect();
 
-    // Parse all recent sessions, sort by mtime, cap at 10
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+
+    // Parse all recent sessions, compute status, sort by mtime, cap at 10
     let mut session_entries: Vec<(u64, SessionTokens)> = recent
         .iter()
         .map(|path| {
@@ -237,7 +268,23 @@ pub async fn get_sessions(recency_minutes: Option<u64>) -> Result<Vec<SessionTok
                 .and_then(|m| m.modified().ok())
                 .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
                 .map_or(0, |d| d.as_secs());
-            let tokens = parse_session_file(path);
+            let (mut tokens, last_entry_type, max_subagent_mtime) = parse_session_file(path);
+
+            // Use the most recent mtime across parent and subagent files
+            let effective_mtime = mtime.max(max_subagent_mtime);
+            let seconds_since = now.saturating_sub(effective_mtime);
+
+            tokens.last_activity_epoch = effective_mtime;
+            tokens.status = if seconds_since > IDLE_THRESHOLD_SECS {
+                "idle".to_string()
+            } else if seconds_since <= ACTIVE_THRESHOLD_SECS {
+                "active".to_string()
+            } else if last_entry_type != "assistant" {
+                "active".to_string()
+            } else {
+                "review".to_string()
+            };
+
             (mtime, tokens)
         })
         .collect();

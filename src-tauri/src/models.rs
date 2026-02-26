@@ -30,6 +30,8 @@ pub struct SessionTokens {
     pub context_limit: u64,
     pub last_model: String,
     pub message_count: u64,
+    pub status: String,
+    pub last_activity_epoch: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
