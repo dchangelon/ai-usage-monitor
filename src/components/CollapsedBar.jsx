@@ -1,20 +1,35 @@
 import { useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import ProgressBar from "./ProgressBar";
 import "./CollapsedBar.css";
+
+const SEGMENT_COUNT = 6;
+
+function SegmentMeter({ percent, accent }) {
+  const filled = Math.round(((percent ?? 0) / 100) * SEGMENT_COUNT);
+  return (
+    <div className="segment-meter" aria-label={`${Math.round(percent ?? 0)}%`}>
+      {Array.from({ length: SEGMENT_COUNT }, (_, i) => (
+        <span
+          key={i}
+          className={`segment-meter__block${i < filled ? " segment-meter__block--on" : ""}`}
+          style={i < filled ? { "--seg-color": accent } : undefined}
+        />
+      ))}
+    </div>
+  );
+}
 
 function MiniUsage({ label, percent, accent }) {
   return (
     <div className="mini-usage">
-      <span className="mini-usage__dot" style={{ backgroundColor: accent }} />
-      <span className="mini-usage__label">{label}</span>
-      <span className="mini-usage__percent">
-        {percent != null ? `${Math.round(percent)}%` : "--"}
-      </span>
-      <div className="mini-usage__bar">
-        <ProgressBar percent={percent ?? 0} size="sm" />
+      <div className="mini-usage__meter-row">
+        <SegmentMeter percent={percent} accent={accent} />
+        <span className="mini-usage__percent" style={{ "--accent": accent }}>
+          {percent != null ? `${Math.round(percent)}%` : "--"}
+        </span>
       </div>
+      <span className="mini-usage__label">{label}</span>
     </div>
   );
 }
@@ -41,7 +56,7 @@ export default function CollapsedBar({
     if (!mouseDownPos.current || e.buttons !== 1) return;
     const dx = e.clientX - mouseDownPos.current.x;
     const dy = e.clientY - mouseDownPos.current.y;
-    if (dx * dx + dy * dy > 9) { // 3px threshold
+    if (dx * dx + dy * dy > 9) {
       mouseDownPos.current = null;
       getCurrentWindow().startDragging();
     }
@@ -57,7 +72,12 @@ export default function CollapsedBar({
   };
 
   return (
-    <div className="collapsed-bar" onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onClick={handleClick}>
+    <div
+      className="collapsed-bar"
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onClick={handleClick}
+    >
       <div className="collapsed-bar__providers">
         <MiniUsage
           label="Claude"

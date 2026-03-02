@@ -145,7 +145,7 @@ export default function App() {
         cursorUsage={cursor}
         onToggle={handleToggle}
         expanded={expanded}
-        theme={config?.theme ?? "light"}
+        theme={config?.theme ?? "dark"}
         onToggleTheme={handleToggleTheme}
       />
       {expanded && (

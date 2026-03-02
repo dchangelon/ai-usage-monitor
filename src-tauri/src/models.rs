@@ -73,7 +73,7 @@ impl Default for AppConfig {
             auto_collapse_seconds: 0,
             opacity: 0.85,
             session_recency_minutes: 30,
-            theme: "light".to_string(),
+            theme: "dark".to_string(),
             providers: Providers {
                 claude: ProviderConfig {
                     enabled: true,

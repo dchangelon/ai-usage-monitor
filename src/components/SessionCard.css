@@ -1,28 +1,46 @@
 .session-card {
   background: var(--bg-card);
   border: 1px solid var(--border);
+  border-top: 1px solid var(--card-accent-color, var(--border));
   border-radius: var(--radius-md);
-  padding: 8px;
+  padding: 8px 10px;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  border-left: 3px solid var(--border);
-  transition: border-left-color 0.3s ease;
+  transition: box-shadow 0.3s ease, border-top-color 0.3s ease;
+
+  /* entrance animation */
+  animation: card-enter 0.25s ease both;
 }
 
-/* Left border stripe by status */
+@keyframes card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Status accent color tokens ─────────────────────────── */
 .session-card.session-card--active {
-  border-left-color: var(--accent-cursor);
+  --card-accent-color: rgba(56, 189, 248, 0.6);
+  box-shadow:
+    0 0 0 1px rgba(56, 189, 248, 0.15),
+    0 2px 8px rgba(56, 189, 248, 0.08);
 }
 
 .session-card.session-card--review {
-  border-left-color: var(--color-yellow);
+  --card-accent-color: rgba(251, 191, 36, 0.5);
 }
 
 .session-card.session-card--idle {
-  border-left-color: var(--border);
+  --card-accent-color: var(--border);
 }
 
+/* ── Header row ─────────────────────────────────────────── */
 .session-card__header {
   display: flex;
   justify-content: space-between;
@@ -41,49 +59,34 @@
   font-size: var(--text-sm);
   font-weight: 600;
   color: var(--text-primary);
+  font-family: var(--font-sans);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* Status badge (dot + label) */
+/* ── Status badge ───────────────────────────────────────── */
 .session-card__status-badge {
   font-size: var(--text-xs);
   padding: 2px 6px;
   border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   white-space: nowrap;
   flex-shrink: 0;
 }
 
-.session-card__dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-/* Active (Working) */
+/* Active */
 .session-card__status-badge.session-card--active {
   color: var(--accent-cursor);
-  background: rgba(59, 130, 246, 0.1);
-}
-
-.session-card--active .session-card__dot {
-  background-color: var(--accent-cursor);
-  animation: status-pulse 1.5s ease-in-out infinite;
+  background: rgba(56, 189, 248, 0.1);
 }
 
 /* Review */
 .session-card__status-badge.session-card--review {
   color: var(--color-yellow);
-  background: rgba(245, 158, 11, 0.1);
-}
-
-.session-card--review .session-card__dot {
-  background-color: var(--color-yellow);
+  background: rgba(251, 191, 36, 0.1);
 }
 
 /* Idle */
@@ -92,23 +95,90 @@
   background: var(--bar-track);
 }
 
+/* ── Status dot — ripple for active ─────────────────────── */
+.session-card__dot {
+  position: relative;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.session-card--active .session-card__dot {
+  background-color: var(--accent-cursor);
+}
+
+.session-card--active .session-card__dot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--accent-cursor);
+  animation: ripple-ping 1.8s ease-out infinite;
+}
+
+@keyframes ripple-ping {
+  0%   { transform: scale(1);   opacity: 0.8; }
+  80%  { transform: scale(2.6); opacity: 0; }
+  100% { transform: scale(2.6); opacity: 0; }
+}
+
+.session-card--review .session-card__dot {
+  background-color: var(--color-yellow);
+}
+
 .session-card--idle .session-card__dot {
   background-color: var(--text-secondary);
-  opacity: 0.5;
+  opacity: 0.4;
 }
 
-@keyframes status-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.3; }
+/* ── Token stats row ────────────────────────────────────── */
+.session-card__tokens {
+  display: flex;
+  gap: 10px;
+  margin-top: 2px;
 }
 
+.session-card__token-stat {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+}
+
+.session-card__token-label {
+  font-size: 9px;
+  font-family: var(--font-sans);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.55;
+}
+
+.session-card__token-value {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+}
+
+/* ── Cache efficiency color variants ───────────────────── */
+.session-card__eff--good .session-card__token-value {
+  color: var(--color-green);
+}
+
+.session-card__eff--ok .session-card__token-value {
+  color: var(--color-yellow);
+}
+
+/* --low inherits var(--text-secondary) — no extra rule needed */
+
+/* ── Model badge ────────────────────────────────────────── */
 .session-card__model {
   font-size: var(--text-xs);
   color: var(--text-secondary);
   background: var(--bar-track);
   padding: 2px 6px;
   border-radius: var(--radius-sm);
-  font-family: monospace;
+  font-family: var(--font-mono);
   white-space: nowrap;
   flex-shrink: 0;
 }

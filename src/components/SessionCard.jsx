@@ -25,6 +25,11 @@ export default function SessionCard({ session }) {
       ? Math.min(100, (session.last_context_tokens / session.context_limit) * 100)
       : 0;
 
+  const totalIn = session.input_tokens + session.cache_read_tokens;
+  const cacheEff = totalIn > 0
+    ? Math.round((session.cache_read_tokens / totalIn) * 100)
+    : null;
+
   const title = session.conversation_title || session.display_name;
   const statusInfo = STATUS_CONFIG[session.status] || STATUS_CONFIG.idle;
 
@@ -44,8 +49,30 @@ export default function SessionCard({ session }) {
       <ProgressBar
         percent={contextPercent}
         label="Context"
-        sublabel={`${formatTokenCount(session.last_context_tokens)}/${formatTokenCount(session.context_limit)} \u00B7 ${formatTokenCount(session.input_tokens)} in \u00B7 ${formatTokenCount(session.output_tokens)} out \u00B7 ${formatTokenCount(session.cache_read_tokens)} cache`}
+        sublabel={`${formatTokenCount(session.last_context_tokens)}/${formatTokenCount(session.context_limit)}`}
       />
+      <div className="session-card__tokens">
+        <span className="session-card__token-stat">
+          <span className="session-card__token-label">in</span>
+          <span className="session-card__token-value">{formatTokenCount(session.input_tokens)}</span>
+        </span>
+        <span className="session-card__token-stat">
+          <span className="session-card__token-label">out</span>
+          <span className="session-card__token-value">{formatTokenCount(session.output_tokens)}</span>
+        </span>
+        <span className="session-card__token-stat">
+          <span className="session-card__token-label">cache</span>
+          <span className="session-card__token-value">{formatTokenCount(session.cache_read_tokens)}</span>
+        </span>
+        {cacheEff !== null && (
+          <span className={`session-card__token-stat session-card__eff session-card__eff--${
+            cacheEff >= 50 ? "good" : cacheEff >= 25 ? "ok" : "low"
+          }`}>
+            <span className="session-card__token-label">eff</span>
+            <span className="session-card__token-value">{cacheEff}%</span>
+          </span>
+        )}
+      </div>
     </div>
   );
 }
