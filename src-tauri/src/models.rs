@@ -67,7 +67,7 @@ pub struct Providers {
 impl Default for AppConfig {
     fn default() -> Self {
         Self {
-            refresh_interval_seconds: 120,
+            refresh_interval_seconds: 300,
             position: Position { x: -1, y: -1 },
             start_expanded: true,
             auto_collapse_seconds: 0,

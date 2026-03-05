@@ -37,7 +37,8 @@ pub async fn get_claude_usage() -> Result<UsageSnapshot, String> {
         .await
         .map_err(|e| format!("API unreachable: {e}"))?;
 
-    if response.status() == 401 {
+    let status = response.status();
+    if status == 401 {
         return Err("Token expired — restart app or re-authenticate".to_string());
     }
 
@@ -45,6 +46,13 @@ pub async fn get_claude_usage() -> Result<UsageSnapshot, String> {
         .json()
         .await
         .map_err(|e| format!("Failed to parse response: {e}"))?;
+
+    if !status.is_success() {
+        let msg = data["error"]["message"]
+            .as_str()
+            .unwrap_or("Unknown error");
+        return Err(format!("API error {status}: {msg}"));
+    }
 
     // Parse five_hour window (primary)
     let five_hour = &data["five_hour"];

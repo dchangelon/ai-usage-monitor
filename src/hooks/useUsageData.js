@@ -12,22 +12,34 @@ export default function useUsageData(config) {
   const [errors, setErrors] = useState({ claude: null, cursor: null });
   const intervalRef = useRef(null);
   const sessionsIntervalRef = useRef(null);
+  // Tracks when we're allowed to call the Claude usage API again after a 429
+  const claudeBackoffUntilRef = useRef(0);
 
   const refresh = useCallback(async () => {
     const recencyMinutes = config?.session_recency_minutes ?? 30;
 
-    // Fetch all three in parallel
+    // Skip the Claude API call if we're within a backoff window
+    const skipClaude = Date.now() < claudeBackoffUntilRef.current;
+
+    // Fetch all three in parallel (skipping Claude if rate-limited)
     const [claudeResult, cursorResult, sessionsResult] = await Promise.allSettled([
-      invoke("get_claude_usage"),
+      skipClaude ? Promise.resolve(null) : invoke("get_claude_usage"),
       invoke("get_cursor_usage"),
       invoke("get_sessions", { recencyMinutes }),
     ]);
 
-    if (claudeResult.status === "fulfilled") {
-      setClaude(claudeResult.value);
-      setErrors((prev) => ({ ...prev, claude: null }));
-    } else {
-      setErrors((prev) => ({ ...prev, claude: claudeResult.reason?.toString() ?? "Unknown error" }));
+    if (!skipClaude) {
+      if (claudeResult.status === "fulfilled" && claudeResult.value !== null) {
+        setClaude(claudeResult.value);
+        setErrors((prev) => ({ ...prev, claude: null }));
+        claudeBackoffUntilRef.current = 0; // reset backoff on success
+      } else if (claudeResult.status === "rejected") {
+        const reason = claudeResult.reason?.toString() ?? "Unknown error";
+        if (reason.includes("429")) {
+          claudeBackoffUntilRef.current = Date.now() + 10 * 60 * 1000; // 10 min backoff
+        }
+        setErrors((prev) => ({ ...prev, claude: reason }));
+      }
     }
 
     if (cursorResult.status === "fulfilled") {

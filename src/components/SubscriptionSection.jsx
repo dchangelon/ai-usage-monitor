@@ -45,6 +45,7 @@ function UsageWindowRow({ window: win, isBillingDate }) {
 function ProviderCard({ snapshot, planName, accent, isBillingDate, error }) {
   const providerLabel =
     snapshot?.provider === "claude" ? "Claude" : "Cursor";
+  const displayError = error?.includes("429") ? "Rate limited — retrying later" : error;
 
   return (
     <div className="provider-card" style={{ "--provider-accent": accent }}>
@@ -53,12 +54,12 @@ function ProviderCard({ snapshot, planName, accent, isBillingDate, error }) {
           <span className="provider-card__name">{providerLabel}</span>
           <span className="provider-card__plan">{planName}</span>
         </div>
-        {error && <span className="provider-card__error">{error}</span>}
+        {displayError && <span className="provider-card__error">{displayError}</span>}
       </div>
 
-      {error && !snapshot ? (
+      {displayError && !snapshot ? (
         <div className="provider-card__error-body">
-          <p>{error}</p>
+          <p>{displayError}</p>
         </div>
       ) : snapshot ? (
         <div className="provider-card__windows">
