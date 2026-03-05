@@ -12,14 +12,16 @@ export default function useUsageData(config) {
   const [errors, setErrors] = useState({ claude: null, cursor: null });
   const intervalRef = useRef(null);
   const sessionsIntervalRef = useRef(null);
-  // Tracks when we're allowed to call the Claude usage API again after a 429
+  // Tracks when we're allowed to call the Claude usage API again after a 429.
+  // Uses exponential backoff: 30m → 60m → 60m (capped).
   const claudeBackoffUntilRef = useRef(0);
+  const claudeBackoffCountRef = useRef(0);
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (forceClaudeCall = false) => {
     const recencyMinutes = config?.session_recency_minutes ?? 30;
 
-    // Skip the Claude API call if we're within a backoff window
-    const skipClaude = Date.now() < claudeBackoffUntilRef.current;
+    // Skip the Claude API call if we're within a backoff window (unless forced by manual refresh)
+    const skipClaude = !forceClaudeCall && Date.now() < claudeBackoffUntilRef.current;
 
     // Fetch all three in parallel (skipping Claude if rate-limited)
     const [claudeResult, cursorResult, sessionsResult] = await Promise.allSettled([
@@ -32,11 +34,18 @@ export default function useUsageData(config) {
       if (claudeResult.status === "fulfilled" && claudeResult.value !== null) {
         setClaude(claudeResult.value);
         setErrors((prev) => ({ ...prev, claude: null }));
-        claudeBackoffUntilRef.current = 0; // reset backoff on success
+        claudeBackoffUntilRef.current = 0;
+        claudeBackoffCountRef.current = 0;
       } else if (claudeResult.status === "rejected") {
         const reason = claudeResult.reason?.toString() ?? "Unknown error";
         if (reason.includes("429")) {
-          claudeBackoffUntilRef.current = Date.now() + 10 * 60 * 1000; // 10 min backoff
+          // Exponential backoff: 30m, 60m, 60m (capped)
+          claudeBackoffCountRef.current += 1;
+          const backoffMs = Math.min(
+            30 * 60 * 1000 * Math.pow(2, claudeBackoffCountRef.current - 1),
+            60 * 60 * 1000
+          );
+          claudeBackoffUntilRef.current = Date.now() + backoffMs;
         }
         setErrors((prev) => ({ ...prev, claude: reason }));
       }
@@ -71,7 +80,7 @@ export default function useUsageData(config) {
   useEffect(() => {
     refresh();
 
-    const intervalSeconds = config?.refresh_interval_seconds ?? 120;
+    const intervalSeconds = config?.refresh_interval_seconds ?? 1800;
     if (intervalSeconds > 0) {
       intervalRef.current = setInterval(refresh, intervalSeconds * 1000);
     }
@@ -100,10 +109,12 @@ export default function useUsageData(config) {
     };
   }, [sessions, refreshSessions]);
 
-  // Listen for tray "Refresh" menu event
+  // Listen for tray "Refresh" menu event — force Claude call even if in backoff
   useEffect(() => {
     const unlisten = listen("refresh-data", () => {
-      refresh();
+      claudeBackoffUntilRef.current = 0;
+      claudeBackoffCountRef.current = 0;
+      refresh(true);
     });
 
     return () => {
